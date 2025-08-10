@@ -9,7 +9,7 @@ app.config['JSON_AS_ASCII'] = False
 
 # ngrok 터널을 열기 위해 pyngrok 설정
 # ngrok.com에 로그인하여 Auth Token을 복사해 붙여넣어야 합니다.
-ngrok.set_auth_token("30rQLzpKFLLeWnCIS6lo2iFNh5q_3sdRX3bEabLkTXXe8BNgb")
+ngrok.set_auth_token("")
 
 # 전역 변수로 NPC 인스턴스 생성
 csv_file_path = './hint_message.csv'
