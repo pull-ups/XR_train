@@ -1,95 +1,93 @@
-# `get_hint` 함수 및 API 엔드포인트 설명
+# XR 재난 훈련 힌트 API
 
-이 문서는 `api.py`에 정의된 `trainNPC` 클래스의 `get_hint` 메서드와 이를 사용하는 `/hint` API 엔드포인트에 대해 설명합니다.
+이 API는 XR 재난 훈련 시뮬레이션에서 플레이어의 상황에 맞는 힌트를 제공하기 위해 만들어졌습니다. 플레이어의 단계(step)와 질문 여부에 따라 두 가지 종류의 힌트를 제공합니다.
 
-## 1. `get_hint` 메서드 개요
+## 사전 준비
 
-`get_hint` 메서드는 XR 재난 훈련 시뮬레이션에서 플레이어의 현재 진행 단계(`current_step`)와 해당 단계에 대한 힌트 요청 횟수(`request_count`)에 따라 적절한 힌트를 제공하는 역할을 합니다.
-
-### 주요 기능
-
--   **단계별 힌트 제공**: `hint_message.csv` 파일에 정의된 각 단계에 맞는 힌트를 반환합니다.
--   **점진적 힌트 시스템**: 같은 단계에 대해 힌트를 반복적으로 요청할 경우, `request_count` 값에 따라 점차 구체적인 힌트(`힌트1` -> `힌트2` -> `힌트3`)를 제공합니다.
--   **힌트 데이터베이스**: `hint_message.csv` 파일을 데이터 소스로 사용합니다. '단계' 열을 기준으로 데이터를 조회합니다.
--   **AI 기반 응답 생성**: OpenAI API(`gpt-4o-mini`)를 사용하여 CSV에 저장된 딱딱한 힌트 텍스트를 AI 조교의 자연스러운 말투로 변환합니다.
--   **Fallback 로직**:
-    -   요청된 수준의 힌트(예: `힌트3`)가 비어있을 경우, 그 이전 수준의 힌트(예: `힌트2` 또는 `힌트1`)를 대신 제공합니다.
-    -   해당 단계에 제공할 힌트가 더 이상 없으면, "더 이상 드릴 힌트가 없네요. 주변을 잘 둘러보세요!" 메시지를 반환합니다.
-    -   OpenAI API 호출에 실패하면, 원본 힌트 텍스트 앞에 `(시스템)`을 붙여 반환합니다.
-
-### `hint_message.csv` 파일 구조
-
-`get_hint` 함수는 아래와 같은 구조의 `hint_message.csv` 파일에 의존합니다.
-
--   **단계**: 훈련의 각 단계를 나타내는 고유 번호. API의 `step` 파라미터와 매칭됩니다.
--   **내용**: 해당 단계의 목표에 대한 설명입니다.
--   **힌트1**: 첫 번째 요청 시 제공되는 가장 기본적인 힌트입니다.
--   **힌트2**: 두 번째 요청 시 제공되는 조금 더 구체적인 힌트입니다.
--   **힌트3**: 세 번째 이상 요청 시 제공되는 가장 상세한 힌트입니다.
-
-**예시 (`hint_message.csv` 일부):**
-
-```csv
-단계,내용,힌트1,힌트2,힌트3
-1,전광판으로 이동,PPE 보관함으로 이동 유도,PPE 보관함 생김새 설명,PPE 보관함 위치 설명
-...
-```
-
-## 2. `/hint` API 엔드포인트
-
-`get_hint` 메서드의 기능을 웹으로 제공하는 Flask API 엔드포인트입니다.
-
--   **URL**: `/hint`
--   **Method**: `GET`
--   **Query Parameters**:
-    -   `step` (필수): 힌트를 요청할 현재 단계를 나타내는 정수.
-    -   `count` (필수): 해당 단계에 대한 힌트 요청 횟수를 나타내는 정수. (1, 2, 3...)
-
-### 성공 응답 (200 OK)
-
-```json
-{
-  "hint": "다음으로 안전 장비를 착용해야 해요. PPE 보관함으로 이동해서 필요한 장비를 챙겨주세요."
-}
-```
-
-### 오류 응답
-
--   **400 Bad Request**: `step` 또는 `count` 파라미터가 정수가 아닐 경우.
-    ```json
-    {
-      "error": "step과 count 파라미터는 정수여야 합니다."
-    }
-    ```
--   **500 Internal Server Error**: 서버 내부 문제.
-    ```json
-    {
-      "error": "Internal Error."
-    }
+1.  **필요한 라이브러리 설치**
+    ```bash
+    pip install flask pandas openai pyngrok
     ```
 
-## 3. 사용 예시 (cURL)
+2.  **OpenAI API 키 설정**
+    API를 실행하기 전, 터미널에서 OpenAI API 키를 환경 변수로 설정해야 합니다.
+    ```bash
+    export OPENAI_API_KEY='your_openai_api_key'
+    ```
 
-**1단계 힌트 첫 번째 요청**
+3.  **힌트 데이터 파일**
+    API 서버를 실행하는 위치에 `hint_message_0-3.csv` 파일이 있어야 합니다.
 
+## 서버 실행
+
+아래 명령어를 사용하여 Flask 서버를 시작합니다.
 ```bash
-curl "http://{IP}/hint?step=1&count=1"
+python api.py
+```
+**참고:** 아래 API 예시의 `{IP}` 부분은 실제 서버가 호스팅된 주소(예: `http://<서버_주소>:<포트>`)로 대체하여 사용해야 합니다.
+
+---
+
+## API 엔드포인트
+
+### 1. 기본 힌트 제공 (`/hint/default`)
+
+사용자가 별도의 질문 없이 힌트를 요청할 때 사용합니다. 현재 단계(`step`)에 해당하는 일반적인 힌트를 제공합니다.
+
+-   **URL:** `/hint/default`
+-   **Method:** `GET`, `POST`
+-   **Output:** `String` - NPC의 말투로 변환된 힌트 메시지
+
+#### Input Arguments
+
+| 이름    | 타입    | 필수 | 기본값 | 설명                                     |
+| :------ | :------ | :--- | :----- | :--------------------------------------- |
+| `scene` | String  | No   | 'cb2'  | 현재 씬 이름 ('ca2' 또는 'cb2')          |
+| `step`  | Integer | Yes  | -      | 사용자의 현재 진행 단계 (CSV의 '세부단계') |
+
+#### 사용 예시
+
+**GET 방식**
+```bash
+curl "{IP}/hint/default?scene=ca2&step=2"
 ```
 
-**1단계 힌트 두 번째 요청**
-
+**POST 방식 (JSON)**
 ```bash
-curl "http://{IP}/hint?step=1&count=2"
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"scene": "ca2", "step": 2}' \
+  "{IP}/hint/default"
 ```
 
-**1단계 힌트 세 번째 요청**
+### 2. 질문 기반 힌트 제공 (`/hint/question`)
 
+사용자가 구체적인 질문을 입력하여 힌트를 요청할 때 사용합니다. 사용자의 질문 내용과 요청 횟수(`count`)를 바탕으로 더 구체적인 힌트를 제공합니다.
+
+-   **URL:** `/hint/question`
+-   **Method:** `GET`, `POST`
+-   **Output:** `String` - 사용자의 질문을 참고하여 NPC 말투로 변환된 힌트 메시지
+
+#### Input Arguments
+
+| 이름           | 타입    | 필수 | 기본값 | 설명                                                                 |
+| :------------- | :------ | :--- | :----- | :------------------------------------------------------------------- |
+| `scene`        | String  | No   | 'cb2'  | 현재 씬 이름 ('ca2' 또는 'cb2')                                      |
+| `step`         | Integer | Yes  | -      | 사용자의 현재 진행 단계                                              |
+| `count`        | Integer | No   | 1      | 해당 단계에서 힌트를 요청한 횟수 (1 또는 2)                          |
+| `text_message` | String  | Yes  | -      | 사용자가 입력한 질문 메시지 (예: "여기서 어떻게 해야 하나요?") |
+
+#### 사용 예시
+
+**GET 방식**
 ```bash
-curl "http://{IP}/hint?step=1&count=3"
+curl "{IP}/hint/question?scene=ca2&step=3&count=2&text_message=탈출구는%20어디에%20있나요?"
 ```
 
-**정보가 없는 단계 요청**
-
+**POST 방식 (JSON)**
 ```bash
-curl "http://{IP}/hint?step=99&count=1"
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"scene": "ca2", "step": 3, "count": 2, "text_message": "탈출구는 어디에 있나요?"}' \
+  "{IP}/hint/question"
 ```

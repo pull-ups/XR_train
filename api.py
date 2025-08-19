@@ -12,8 +12,9 @@ app.config['JSON_AS_ASCII'] = False
 ngrok.set_auth_token("")
 
 # 전역 변수로 NPC 인스턴스 생성
-csv_file_path = './hint_message.csv'
-npc = None
+# 모든 씬에서 사용할 단일 CSV 파일
+CSV_PATH = './hint_message_0-3.csv'
+npcs = {}
 
 
 class trainNPC:
@@ -29,8 +30,8 @@ class trainNPC:
         if not os.path.exists(csv_path):
             raise FileNotFoundError(f"CSV 파일을 찾을 수 없습니다: {csv_path}")
         
-        # '단계' 열을 인덱스로 사용하여 CSV 파일 로드
-        self.hint_data = pd.read_csv(csv_path, index_col='단계')
+        # '세부단계' 열을 인덱스로 사용하여 CSV 파일 로드
+        self.hint_data = pd.read_csv(csv_path, index_col='세부단계')
         # NaN 값을 빈 문자열로 대체
         self.hint_data = self.hint_data.fillna('')
         # OpenAI 클라이언트 초기화 (환경 변수에서 API 키 로드)
@@ -42,7 +43,7 @@ class trainNPC:
             print("OPENAI_API_KEY 환경 변수가 설정되었는지 확인하세요.")
             self.client = None
 
-    def _rephrase_as_npc(self, hint_text: str) -> str:
+    def _rephrase_as_npc(self, hint_text: str, user_question: str = None) -> str:
         """
         주어진 힌트 텍스트를 NPC의 자연스러운 대화체로 변환합니다.
         """
@@ -52,11 +53,15 @@ class trainNPC:
         try:
             system_prompt = "당신은 XR 재난 훈련 시뮬레이션의 친절한 AI 조교입니다. 주어진 힌트를 보고, 훈련자가 다음에 무엇을 해야 할지 자연스럽고 격려하는 말투로 안내해주세요. 핵심 내용은 유지하되, 문장을 완성된 형태로 부드럽게 만들어주세요. 너무 많은 내용을 담지 않도록 주의하고, 훈련자가 이해하기 쉽게 간결하게 작성해주세요."
             
+            user_content = f"힌트: {hint_text}"
+            if user_question:
+                user_content = f"사용자 질문: {user_question}\n참고할 힌트: {hint_text}"
+
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": hint_text}
+                    {"role": "user", "content": user_content}
                 ],
                 temperature=0.7,
             )
@@ -65,43 +70,76 @@ class trainNPC:
             print(f"OpenAI API 호출 중 오류 발생: {e}")
             return f"(시스템) {hint_text}" # API 실패 시 원본 힌트 반환
 
-    def get_hint(self, current_step: int, request_count: int) -> str:
+    def get_default_hint(self, step: int) -> str:
         """
-        현재 단계와 요청 횟수에 맞는 힌트를 제공합니다.
-
-        :param current_step: 플레이어의 현재 게임 단계
-        :param request_count: 해당 단계에 대한 힌트 요청 횟수
+        사용자가 말 없이 힌트를 요청했을 때 기본 힌트를 제공합니다.
+        :param step: 현재 세부 단계
         :return: 제공할 힌트 메시지
         """
-        if current_step not in self.hint_data.index:
+        if step not in self.hint_data.index:
             return "해당 단계에 대한 정보가 없습니다. 단계를 다시 확인해주세요."
-
-        # 요청 횟수에 따라 힌트 선택
-        if request_count == 1:
-            hint_col = '힌트1'
-        elif request_count == 2:
-            hint_col = '힌트2'
-        else: # 3회 이상 요청 시
-            hint_col = '힌트3'
-
-        hint = self.hint_data.loc[current_step, hint_col]
-
-        # 상위 힌트가 비어있을 경우, 하위 힌트에서 가져오기
-        if not hint.strip():
-            if hint_col == '힌트3' and self.hint_data.loc[current_step, '힌트2'].strip():
-                hint = self.hint_data.loc[current_step, '힌트2']
-            elif (hint_col == '힌트2' or hint_col == '힌트3') and self.hint_data.loc[current_step, '힌트1'].strip():
-                hint = self.hint_data.loc[current_step, '힌트1']
+        
+        hint = self.hint_data.loc[step, '기본 힌트']
 
         if not hint.strip():
             return "더 이상 드릴 힌트가 없네요. 주변을 잘 둘러보세요!"
 
         return self._rephrase_as_npc(hint)
 
+    def get_question_hint(self, step: int, count: int, text_message: str) -> str:
+        """
+        사용자가 직접 질문했을 때 요청 횟수에 맞는 힌트를 제공합니다.
+        :param step: 현재 세부 단계
+        :param count: 해당 단계에 대한 힌트 요청 횟수
+        :param text_message: 사용자의 질문 메시지
+        :return: 제공할 힌트 메시지
+        """
+        if step not in self.hint_data.index:
+            return "해당 단계에 대한 정보가 없습니다. 단계를 다시 확인해주세요."
+
+        if count == 1:
+            hint_col = '요청 힌트 1'
+        elif count >= 2:
+            hint_col = '요청 힌트 2'
+        else:
+            return "힌트 요청 횟수(count)는 1 이상이어야 합니다."
+
+        hint = self.hint_data.loc[step, hint_col]
+
+        if not hint.strip():
+            # 요청 힌트 2가 비었으면 요청 힌트 1을 사용
+            if hint_col == '요청 힌트 2' and self.hint_data.loc[step, '요청 힌트 1'].strip():
+                hint = self.hint_data.loc[step, '요청 힌트 1']
+            else: # 그래도 비어있으면 기본 힌트 사용
+                hint = self.hint_data.loc[step, '기본 힌트']
+
+        if not hint.strip():
+            return "더 이상 드릴 힌트가 없네요. 주변을 잘 둘러보세요!"
+
+        return self._rephrase_as_npc(hint, user_question=text_message)
+
+# NPC 인스턴스 생성 및 초기화
 try:
-    npc = trainNPC(csv_path=csv_file_path)
+    if os.path.exists(CSV_PATH):
+        # 단일 NPC 인스턴스를 생성합니다.
+        single_npc_instance = trainNPC(csv_path=CSV_PATH)
+        # 각 씬(ca2, cb2)이 동일한 인스턴스를 참조하도록 설정합니다.
+        npcs['ca2'] = single_npc_instance
+        npcs['cb2'] = single_npc_instance
+        print(f"모든 씬에 대한 NPC 초기화 성공 (CSV: {CSV_PATH}).")
+    else:
+        print(f"경고: CSV 파일을 찾을 수 없습니다: {CSV_PATH}")
 except Exception as e:
     print(f"NPC 초기화 실패: {e}")
+
+
+# 공통 응답 처리 함수
+def create_response(data, status_code=200):
+    return app.response_class(
+        response=json.dumps(data, ensure_ascii=False, indent=None),
+        status=status_code,
+        mimetype='application/json; charset=utf-8'
+    )
 
 # Flask API 엔드포인트들
 @app.route('/ping')
@@ -109,32 +147,108 @@ def ping():
     """서버 상태 확인용 엔드포인트"""
     return "pong"
 
-@app.route('/hint', methods=['GET'])
-def get_hint():
-    """특정 단계의 힌트를 제공하는 엔드포인트"""
-    if npc is None:
-        return jsonify({"error": "NPC가 초기화되지 않았습니다."}), 500
+@app.route('/hint/default', methods=['GET', 'POST'])
+def get_default_hint():
+    """1. 사용자가 말 없이 힌트를 요청했을 때"""
     try:
-        step = int(request.args.get('step', 0))
-        count = int(request.args.get('count', 1))
-        
-        hint = npc.get_hint(step, count)
-        
-        response_data = {"hint": hint}
-        
-        response = app.response_class(
-            response=json.dumps(response_data, ensure_ascii=False, indent=None),
-            status=200,
-            mimetype='application/json; charset=utf-8'
-        )
-        return response
+        if request.method == 'POST':
+            data = request.get_json()
+            scene = data.get('scene', 'cb2')
+            step = int(data['step'])
+        else: # GET
+            scene = request.args.get('scene', 'cb2')
+            step = int(request.args.get('step'))
 
+        if scene not in npcs:
+            return f"'{scene}' 씬이 초기화되지 않았습니다.", 500
+        
+        npc = npcs[scene]
+        hint = npc.get_default_hint(step)
+        return hint
+
+    except (TypeError, KeyError):
+        return "필수 파라미터 'step'이 누락되었거나 형식이 잘못되었습니다.", 400
     except ValueError:
-        return jsonify({"error": "step과 count 파라미터는 정수여야 합니다."}), 400
+        return "'step' 파라미터는 정수여야 합니다.", 400
     except Exception as e:
-        return jsonify({"error": f"오류가 발생했습니다: {str(e)}"}), 500
+        return f"오류가 발생했습니다: {str(e)}", 500
+
+@app.route('/hint/question', methods=['GET', 'POST'])
+def get_question_hint():
+    """2. 사용자가 직접 질문을 통해 힌트를 요청했을 때"""
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            scene = data.get('scene', 'cb2')
+            step = int(data['step'])
+            count = int(data.get('count', 1))
+            text_message = data['text_message']
+        else: # GET
+            scene = request.args.get('scene', 'cb2')
+            step = int(request.args.get('step'))
+            count = int(request.args.get('count', 1))
+            text_message = request.args.get('text_message', '')
+
+        if not text_message:
+            return "필수 파라미터 'text_message'가 누락되었습니다.", 400
+
+        if scene not in npcs:
+            return f"'{scene}' 씬이 초기화되지 않았습니다.", 500
+
+        npc = npcs[scene]
+        hint = npc.get_question_hint(step, count, text_message)
+        return hint
+
+    except (TypeError, KeyError):
+        return "필수 파라미터('step', 'text_message')가 누락되었거나 형식이 잘못되었습니다.", 400
+    except ValueError:
+        return "'step'과 'count' 파라미터는 정수여야 합니다.", 400
+    except Exception as e:
+        return f"오류가 발생했습니다: {str(e)}", 500
 
 
 if __name__ == '__main__':
     # 0.0.0.0으로 설정하면 외부에서 접근 가능
+    # ngrok을 사용하려면 debug=False로 설정하는 것이 좋습니다.
+    # public_url = ngrok.connect(3001)
+    # print(f" * ngrok tunnel \"{public_url}\" -> \"http://127.0.0.1:3001\"")
     app.run(host='0.0.0.0', port=3001, debug=True)
+
+
+# --- API 테스트용 curl 명령어 예시 ---
+# 서버가 실행 중일 때, 터미널에서 아래 명령어를 실행하여 테스트할 수 있습니다.
+# URL의 공백이나 특수문자를 위해 큰따옴표("")로 감싸주는 것이 안전합니다.
+
+# 1. 사용자가 말 없이 힌트를 요청했을 때 (/hint/default)
+# 1-1. 기본값(scene=cb2)으로 1단계 힌트 요청
+# curl "http://127.0.0.1:3001/hint/default?step=1"
+
+# 1-2. 'ca2' 씬의 2단계 힌트 요청
+# curl "http://127.0.0.1:3001/hint/default?scene=ca2&step=2"
+
+
+# 2. 사용자가 직접 질문을 통해 힌트를 요청했을 때 (/hint/question)
+# 2-1. 'cb2' 씬, 1단계, 첫 번째(count=1) 질문
+# curl "http://127.0.0.1:3001/hint/question?step=1&count=1&text_message=여기서%20어떻게%20해야%20하나요?"
+
+# 2-2. 'ca2' 씬, 3단계, 두 번째(count=2) 질문
+# curl "http://127.0.0.1:3001/hint/question?scene=ca2&step=3&count=2&text_message=탈출구는%20어디에%20있나요?"
+
+# 2-3. 필수 파라미터(text_message) 누락 시 에러 응답 테스트
+# curl "http://127.0.0.1:3001/hint/question?step=1&count=1"
+
+# 2-4. 존재하지 않는 step 요청 시 에러 응답 테스트
+# curl "http://127.0.0.1:3001/hint/default?step=999"
+
+
+
+
+# [ POST 방식 (JSON) ]
+# 1. 사용자가 말 없이 힌트를 요청했을 때 (/hint/default)
+# curl -X POST -H "Content-Type: application/json" -d "{\"scene\": \"ca2\", \"step\": 2}" "http://127.0.0.1:3001/hint/default"
+
+# 2. 사용자가 직접 질문을 통해 힌트를 요청했을 때 (/hint/question)
+# curl -X POST -H "Content-Type: application/json" -d "{\"scene\": \"ca2\", \"step\": 3, \"count\": 2, \"text_message\": \"탈출구는 어디에 있나요?\"}" "http://127.0.0.1:3001/hint/question"
+
+# 2-1. 필수 파라미터(text_message) 누락 시 에러 응답 테스트 (POST)
+# curl -X POST -H "Content-Type: application/json" -d "{\"step\": 1, \"count\": 1}" "http://127.0.0.1:3001/hint/question"
