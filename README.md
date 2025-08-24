@@ -2,29 +2,6 @@
 
 이 API는 XR 재난 훈련 시뮬레이션에서 플레이어의 상황에 맞는 힌트를 제공하기 위해 만들어졌습니다. 플레이어의 단계(step)와 질문 여부에 따라 두 가지 종류의 힌트를 제공합니다.
 
-## 사전 준비
-
-1.  **필요한 라이브러리 설치**
-    ```bash
-    pip install flask pandas openai pyngrok
-    ```
-
-2.  **OpenAI API 키 설정**
-    API를 실행하기 전, 터미널에서 OpenAI API 키를 환경 변수로 설정해야 합니다.
-    ```bash
-    export OPENAI_API_KEY='your_openai_api_key'
-    ```
-
-3.  **힌트 데이터 파일**
-    API 서버를 실행하는 위치에 `hint_message_0-3.csv` 파일이 있어야 합니다.
-
-## 서버 실행
-
-아래 명령어를 사용하여 Flask 서버를 시작합니다.
-```bash
-python api.py
-```
-**참고:** 아래 API 예시의 `{IP}` 부분은 실제 서버가 호스팅된 주소(예: `http://<서버_주소>:<포트>`)로 대체하여 사용해야 합니다.
 
 ---
 
