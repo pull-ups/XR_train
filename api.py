@@ -28,7 +28,7 @@ class trainNPC:
             raise FileNotFoundError(f"CSV 파일을 찾을 수 없습니다: {csv_path}")
         
         # '세부단계' 열을 인덱스로 사용하여 CSV 파일 로드
-        self.hint_data = pd.read_csv(csv_path, index_col='단계')
+        self.hint_data = pd.read_csv(csv_path, index_col='순서')
         # NaN 값을 빈 문자열로 대체
         self.hint_data = self.hint_data.fillna('')
         # OpenAI 클라이언트 초기화 (환경 변수에서 API 키 로드)
