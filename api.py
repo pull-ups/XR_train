@@ -13,7 +13,7 @@ ngrok.set_auth_token("")
 
 # 전역 변수로 NPC 인스턴스 생성
 # 모든 씬에서 사용할 단일 CSV 파일
-CSV_PATH = './hint_message_for_NPC.csv'
+CSV_PATH = './assets/hint_message_for_NPC.csv'
 npcs = {}
 
 
