@@ -206,12 +206,13 @@ def get_question_hint():
 
 if __name__ == '__main__':
     # 0.0.0.0으로 설정하면 외부에서 접근 가능
-    # ngrok을 사용하려면 debug=False로 설정하는 것이 좋습니다.
-    # public_url = ngrok.connect(3000)
-    # print(f" * ngrok tunnel \"{public_url}\" -> \"http://127.0.0.1:3000\"")
-    app.run(host='0.0.0.0', port=3000, debug=True)
+    app.run(host='0.0.0.0', port=14724, debug=True)
 
+"""
+python -m api
+"""
 
+"""
 # --- API 테스트용 curl 명령어 예시 ---
 # 서버가 실행 중일 때, 터미널에서 아래 명령어를 실행하여 테스트할 수 있습니다.
 # URL의 공백이나 특수문자를 위해 큰따옴표("")로 감싸주는 것이 안전합니다.
@@ -249,3 +250,4 @@ if __name__ == '__main__':
 
 # 2-1. 필수 파라미터(text_message) 누락 시 에러 응답 테스트 (POST)
 # curl -X POST -H "Content-Type: application/json" -d "{\"step\": 1, \"count\": 1}" "http://127.0.0.1:3000/hint/question"
+"""
