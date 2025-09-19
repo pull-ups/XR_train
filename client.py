@@ -3,7 +3,8 @@ import requests
 import json
 
 # API 서버의 기본 URL
-BASE_URL = "http://127.0.0.1:14724"
+# BASE_URL = "http://127.0.0.1:14724"
+BASE_URL = "https://27df451c45ad.ngrok-free.app"
 
 def print_request_response(title, url, data, response):
     """요청과 응답을 예쁘게 출력하는 함수"""
