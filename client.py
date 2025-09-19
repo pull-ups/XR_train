@@ -32,6 +32,55 @@ def print_request_response(title, url, data, response):
         print(response.text)
     print("\n" + "="*50 + "\n")
 
+def print_csv_download_response(title, url, response):
+    """CSV 파일 다운로드 요청과 응답을 예쁘게 출력하는 함수"""
+    print(f"--- {title} ---")
+    print(f"요청 URL: {url}")
+    print("요청 내용: (GET 요청)")
+    print()
+    
+    if response.status_code == 200:
+        print("✅ 요청 성공!")
+        print("응답 내용:")
+        
+        # Content-Type 확인
+        content_type = response.headers.get('Content-Type', '')
+        print(f"Content-Type: {content_type}")
+        
+        # Content-Disposition 확인 (파일명 정보)
+        content_disposition = response.headers.get('Content-Disposition', '')
+        if content_disposition:
+            print(f"Content-Disposition: {content_disposition}")
+        
+        # 파일 크기 확인
+        content_length = response.headers.get('Content-Length', '')
+        if content_length:
+            print(f"파일 크기: {content_length} bytes")
+        elif response.content:
+            print(f"파일 크기: {len(response.content)} bytes")
+        
+        # CSV 내용 미리보기 (처음 몇 줄만)
+        if response.content:
+            try:
+                content_text = response.content.decode('utf-8')
+                lines = content_text.split('\n')
+                print("\nCSV 파일 내용 미리보기 (처음 5줄):")
+                for i, line in enumerate(lines[:5]):
+                    if line.strip():  # 빈 줄이 아닌 경우만 출력
+                        print(f"{i+1}: {line}")
+                if len(lines) > 5:
+                    print(f"... (총 {len([l for l in lines if l.strip()])}줄)")
+            except UnicodeDecodeError:
+                print("CSV 파일 내용을 텍스트로 디코딩할 수 없습니다.")
+        else:
+            print("파일 내용이 비어있습니다.")
+            
+    else:
+        print(f"❌ 오류 발생! (상태 코드: {response.status_code})")
+        print("오류 내용:")
+        print(response.text)
+    print("\n" + "="*50 + "\n")
+
 def test_api():
     """모든 API 엔드포인트를 테스트합니다."""
     
@@ -91,6 +140,12 @@ def test_api():
     url9 = f"{BASE_URL}/hint/question"
     response9 = requests.post(url9, json=data9)
     print_request_response("4-3. 오류 테스트 - text_message 누락 (POST)", url9, data9, response9)
+
+    # 5. CSV 파일 다운로드 테스트
+    # 5-1. hint-csv 파일 다운로드 테스트
+    url10 = f"{BASE_URL}/view/hint-csv"
+    response10 = requests.get(url10)
+    print_csv_download_response("5-1. CSV 파일 다운로드 테스트", url10, response10)
 
 if __name__ == "__main__":
     # API 서버가 실행 중인지 확인

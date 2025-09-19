@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 from openai import OpenAI
-from flask import Flask, request, jsonify, json
+from flask import Flask, request, jsonify, json, send_file
 from pyngrok import ngrok
 
 app = Flask(__name__)
@@ -203,6 +203,19 @@ def get_question_hint():
     except Exception as e:
         return f"오류가 발생했습니다: {str(e)}", 500
 
+@app.route('/view/hint-csv', methods=['GET'])
+def download_hint_csv():
+    """
+    hint_message_for_NPC.csv 파일을 클라이언트에 전송합니다.
+    """
+    if not os.path.exists(CSV_PATH):
+        return "CSV 파일을 찾을 수 없습니다.", 404
+    return send_file(
+        CSV_PATH,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='hint_message_for_NPC.csv'
+    )
 
 if __name__ == '__main__':
     # 0.0.0.0으로 설정하면 외부에서 접근 가능
