@@ -91,6 +91,7 @@ class trainNPC:
         :param text_message: 사용자의 질문 메시지
         :return: 제공할 힌트 메시지
         """
+        step = step + 1 # 우리는 1단계부터 처리하는데 입력을 0으로 하기 때문에 1을 더해줍니다.
         if step not in self.hint_data.index:
             return "해당 단계에 대한 정보가 없습니다. 단계를 다시 확인해주세요."
 
@@ -155,14 +156,14 @@ def get_default_hint():
         else: # GET
             scene = request.args.get('scene', 'cb2')
             step = int(request.args.get('step'))
-
+        
         if scene not in npcs:
             return f"'{scene}' 씬이 초기화되지 않았습니다.", 500
         
         npc = npcs[scene]
         hint = npc.get_default_hint(step)
         return hint
-
+    
     except (TypeError, KeyError):
         return "필수 파라미터 'step'이 누락되었거나 형식이 잘못되었습니다.", 400
     except ValueError:
@@ -185,7 +186,7 @@ def get_question_hint():
             step = int(request.args.get('step'))
             count = int(request.args.get('count', 1))
             text_message = request.args.get('text_message', '')
-
+        
         if not text_message:
             return "필수 파라미터 'text_message'가 누락되었습니다.", 400
 

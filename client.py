@@ -86,47 +86,47 @@ def test_api():
     
     # 1. 기본 힌트 요청 테스트 (GET 방식)
     # 1-1. 기본값(scene=cb2)으로 1단계 힌트 요청
-    url1 = f"{BASE_URL}/hint/default?step=1"
+    url1 = f"{BASE_URL}/hint/default?step=0"
     response1 = requests.get(url1)
-    print_request_response("1-1. 기본 힌트 요청 (GET, cb2 씬, 1단계)", url1, None, response1)
+    print_request_response("1-1. 기본 힌트 요청 (GET, cb2 씬, 1단계(입력 0))", url1, None, response1)
 
     # 1-2. 'ca2' 씬의 2단계 힌트 요청
-    url2 = f"{BASE_URL}/hint/default?scene=ca2&step=2"
+    url2 = f"{BASE_URL}/hint/default?scene=ca2&step=1"
     response2 = requests.get(url2)
-    print_request_response("1-2. 기본 힌트 요청 (GET, ca2 씬, 2단계)", url2, None, response2)
+    print_request_response("1-2. 기본 힌트 요청 (GET, ca2 씬, 2단계(입력 1))", url2, None, response2)
 
     # 2. 질문 기반 힌트 요청 테스트 (GET 방식)
     # 2-1. 'cb2' 씬, 1단계, 첫 번째(count=1) 질문
-    url3 = f"{BASE_URL}/hint/question?step=1&count=1&text_message=여기서 어떻게 해야 하나요?"
+    url3 = f"{BASE_URL}/hint/question?step=0&count=1&text_message=여기서 어떻게 해야 하나요?"
     response3 = requests.get(url3)
-    print_request_response("2-1. 질문 힌트 요청 (GET, cb2 씬, 1단계)", url3, None, response3)
+    print_request_response("2-1. 질문 힌트 요청 (GET, cb2 씬, 1단계(입력 0))", url3, None, response3)
 
     # 2-2. 'ca2' 씬, 3단계, 두 번째(count=2) 질문
-    url4 = f"{BASE_URL}/hint/question?scene=ca2&step=3&count=2&text_message=탈출구는 어디에 있나요?"
+    url4 = f"{BASE_URL}/hint/question?scene=ca2&step=2&count=2&text_message=탈출구는 어디에 있나요?"
     response4 = requests.get(url4)
-    print_request_response("2-2. 질문 힌트 요청 (GET, ca2 씬, 3단계)", url4, None, response4)
+    print_request_response("2-2. 질문 힌트 요청 (GET, ca2 씬, 2단계(입력 1))", url4, None, response4)
 
     # 3. POST 방식 테스트
     # 3-1. 기본 힌트 요청 (POST)
-    data5 = {"scene": "ca2", "step": 2}
+    data5 = {"scene": "ca2", "step": 1}
     url5 = f"{BASE_URL}/hint/default"
     response5 = requests.post(url5, json=data5)
-    print_request_response("3-1. 기본 힌트 요청 (POST, ca2 씬, 2단계)", url5, data5, response5)
+    print_request_response("3-1. 기본 힌트 요청 (POST, ca2 씬, 2단계(입력 1))", url5, data5, response5)
 
     # 3-2. 질문 기반 힌트 요청 (POST)
     data6 = {
         "scene": "ca2", 
-        "step": 3, 
+        "step": 2, 
         "count": 2, 
         "text_message": "탈출구는 어디에 있나요?"
     }
     url6 = f"{BASE_URL}/hint/question"
     response6 = requests.post(url6, json=data6)
-    print_request_response("3-2. 질문 힌트 요청 (POST, ca2 씬, 3단계)", url6, data6, response6)
+    print_request_response("3-2. 질문 힌트 요청 (POST, ca2 씬, 2단계(입력 1))", url6, data6, response6)
 
     # 4. 오류 케이스 테스트
     # 4-1. 필수 파라미터(text_message) 누락 시 에러 응답 테스트 (GET)
-    url7 = f"{BASE_URL}/hint/question?step=1&count=1"
+    url7 = f"{BASE_URL}/hint/question?step=0&count=1"
     response7 = requests.get(url7)
     print_request_response("4-1. 오류 테스트 - text_message 누락 (GET)", url7, None, response7)
 
@@ -136,7 +136,7 @@ def test_api():
     print_request_response("4-2. 오류 테스트 - 존재하지 않는 step", url8, None, response8)
 
     # 4-3. 필수 파라미터(text_message) 누락 시 에러 응답 테스트 (POST)
-    data9 = {"step": 1, "count": 1}
+    data9 = {"step": 0, "count": 1}
     url9 = f"{BASE_URL}/hint/question"
     response9 = requests.post(url9, json=data9)
     print_request_response("4-3. 오류 테스트 - text_message 누락 (POST)", url9, data9, response9)
