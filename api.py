@@ -133,7 +133,7 @@ class trainNPC:
         :param step: 현재 세부 단계
         :return: 제공할 힌트 메시지
         """
-        if scene not in self.hint_data.index:
+        if scene not in ["ca2", "cb2"]:
             return "해당 씬에 대한 정보가 없습니다. 씬을 다시 확인해주세요."
 
         if step not in self.hint_data.index:
